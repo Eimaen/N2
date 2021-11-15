@@ -92,7 +92,6 @@ namespace Nitrogen
             ProxyQueue.UpdateList(File.ReadAllLines("proxies.txt").ToList());
             for (int i = 0; i < Settings.Default.ThreadCount; i++)
                 new Thread(Work).Start();
-            Console.ReadKey();
         }
     }
 }
