@@ -2,7 +2,6 @@
 The proper Discord Nitro code generator and checker.
 
 ## <sub><sup>not</sup></sub> FAQ
-*"not" just because c'mon why don't you pay for fxxing nitro?)*
 ### Why?
 All the generators that I saw on github contained a bunch of errors in their code. I took everything into account and wrote my own. Because why not?
 
